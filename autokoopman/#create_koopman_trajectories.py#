@@ -1,0 +1,77 @@
+import gym
+import time
+import numpy as np
+import matplotlib
+from matplotlib import pyplot as plt
+import random
+import csv
+import os
+import json
+
+import sys
+sys.path.insert(0,'..')
+sys.path.insert(1,'../..')
+
+file_path = "../output/expr_20240522_143535/PPO_DubinsRejoin_15bc3_00000_0_2024-05-22_14-35-38/eval/ckpt_200/eval.log"
+with open(file_path, 'r') as file:
+    data = [json.loads(line) for line in file]
+
+output = []
+
+# Split data into episodes 
+batch = []
+for data_item in data:
+    if data_item['info']['failure'] or data_item['info']['success']:
+        lead_x = np.array([entry['info']['lead']['x'] for entry in batch])
+        lead_y = np.array([entry['info']['lead']['y'] for entry in batch])
+        wingman_x = np.array([entry['info']['wingman']['x'] for entry in batch])
+        wingman_y = np.array([entry['info']['wingman']['y'] for entry in batch])
+        lead_speed = np.array([entry['info']['lead']['v'] for entry in batch])
+        wingman_speed = np.array([entry['info']['wingman']['v'] for entry in batch])
+        lead_heading = np.array([entry['info']['lead']['heading'] for entry in batch])
+        wingman_heading = np.array([entry['info']['wingman']['heading'] for entry in batch])
+        
+        actions = [entry['actions'] for entry in batch]
+
+        # use exact relative coordinates from neural network output
+        
+        #states = list(zip(lead_x, lead_y, wingman_x, wingman_y, lead_speed, wingman_speed, lead_heading, wingman_heading))
+        #states = list(zip(lead_x, lead_y, lead_speed, lead_heading))
+        #states = list(zip(wingman_x, wingman_y, wingman_speed, wingman_heading))
+
+        states = list(zip(lead_x - wingman_x, lead_y - wingman_y, lead_speed - wingman_speed, lead_heading - wingman_heading))
+        
+        times = [t for t in range(0,len(states))]
+
+        output.append([actions, times, states])
+
+        batch = []
+    else:
+        batch.append(data_item)
+
+
+# Write CSV Files
+for i, measurement in enumerate(output):
+    current_dir = "DubinsRejoin/measurement_" + str(i) + "/"
+
+    if not os.path.exists(current_dir):
+        os.makedirs(current_dir)
+    
+    inputs = measurement[0]
+    steps = measurement[1]
+    trajectory = measurement[2]
+    
+    with open(current_dir + "input.csv", "w") as csvfile:
+        writer = csv.writer(csvfile)
+        for actions in inputs:
+            writer.writerow(actions)
+
+    with open(current_dir + "time.csv", "w") as csvfile:
+        writer = csv.writer(csvfile)
+        for step in steps:
+            writer.writerow([step])
+
+    with open(current_dir + "trajectory.csv", "w") as csvfile:
+        writer = csv.writer(csvfile)
+        for state in trajectory:
+            writer.writerow(state)
