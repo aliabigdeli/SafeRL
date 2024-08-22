@@ -3,6 +3,7 @@ import abc
 import numpy as np
 import math
 from scipy.spatial.transform import Rotation
+import time
 
 from saferl.environment.models.platforms import BasePlatform, BasePlatformStateVectorized, ContinuousActuator, \
     BaseActuatorSet, BaseODESolverDynamics
@@ -182,6 +183,9 @@ class Dubins2dActuatorSet(BaseActuatorSet):
 
 class Dubins2dDynamics(BaseODESolverDynamics):
 
+    step_call_counter = 0
+    runnning_sum_time = 0.0
+
     def __init__(self, v_min=10, v_max=100, *args, **kwargs):
         self.v_min = v_min
         self.v_max = v_max
@@ -189,6 +193,8 @@ class Dubins2dDynamics(BaseODESolverDynamics):
         super().__init__(*args, **kwargs)
 
     def step(self, step_size, state, control):
+        Dubins2dDynamics.step_call_counter += 1
+        start_time = time.time()
         
         # new: if v is close to self.v_min, adjust throttle so that min speed is achieved in 2 sec
         v = state.v
@@ -208,6 +214,10 @@ class Dubins2dDynamics(BaseODESolverDynamics):
         #if state.v < self.v_min or state.v > self.v_max:
         #    state.v = max(min(state.v, self.v_max), self.v_min)
 
+        end_time = time.time()
+        execution_time = end_time - start_time
+        Dubins2dDynamics.runnning_sum_time += execution_time
+        print(f"Execution time: {execution_time} seconds. For calling {Dubins2dDynamics.step_call_counter}th step function. Avg time: {Dubins2dDynamics.runnning_sum_time / Dubins2dDynamics.step_call_counter}")
         return state
 
     def dx(self, t, state_vec, control):
