@@ -14,6 +14,10 @@ from .aerobench.util import get_state_names, Euler, StateIndex, print_state, Fre
 
 from .aerobench.lowlevel.low_level_controller import LowLevelController
 from .aerobench.example.acasxu.acasxu_autopilot import AcasXuAutopilot
+from .aerobench.example.straight_and_level.run import StraightAndLevelAutopilot
+from .aerobench.example.waypoint.waypoint_autopilot import WaypointAutopilot
+from numpy import deg2rad
+from collections import deque
 
 
 class BaseDubinsPlatform(BasePlatform):
@@ -404,7 +408,7 @@ class F162dPlatform(BaseDubinsPlatform):
 
     def __init__(self, name, controller=None, rta=None, v_min=10, v_max=100, integration_method='Euler'):
 
-        dynamics = F162dDynamics(v_min=v_min, v_max=v_max, integration_method=integration_method)
+        dynamics = F162dDynamics(name, v_min=v_min, v_max=v_max, integration_method=integration_method)
         actuator_set = F162dActuatorSet()
 
         state = F162dState()
@@ -519,18 +523,71 @@ def ownship_initial_state(llc):
 
     return init
 
+def get_straight_autopilot_init():
+    ### Initial Conditions ###
+    power = 3 # engine power level (0-10)
+
+    # Default alpha & beta
+    alpha = deg2rad(1.8) # Trim Angle of Attack (rad)
+    beta = 0                # Side slip angle (rad)
+
+    # Initial Attitude
+    alt = 3600        # altitude (ft)
+    vt = 550          # initial velocity (ft/sec)
+    phi = 0           # Roll angle from wings level (rad)
+    theta = 0.03         # Pitch angle from nose level (rad)
+    psi = -2 #0       # Yaw angle from North (rad)
+
+    # Build Initial Condition Vectors
+    # state = [vt, alpha, beta, phi, theta, psi, P, Q, R, pn, pe, h, pow]
+    pn = 7800 #0
+    pe = 7800 #0
+    init = [vt, alpha, beta, phi, theta, psi, 0, 0, 0, pn, pe, alt, power]
+    return init
+
+def get_waypoint_autopilot_init():
+    ### Initial Conditions ###
+    power = 4 # engine power level (0-10)
+
+    # Default alpha & beta
+    alpha = deg2rad(2.1215) # Trim Angle of Attack (rad)
+    beta = 0                # Side slip angle (rad)
+
+    # Initial Attitude
+    alt = 3600 #3800        # altitude (ft)
+    vt = 500          # initial velocity (ft/sec)
+    phi = 0           # Roll angle from wings level (rad)
+    theta = 0         # Pitch angle from nose level (rad)
+    psi = math.pi/8   # Yaw angle from North (rad)
+
+    # Build Initial Condition Vectors
+    # state = [vt, alpha, beta, phi, theta, psi, P, Q, R, pn, pe, h, pow]
+    init = [vt, alpha, beta, phi, theta, psi, 0, 0, 0, 0, 0, alt, power]
+    return init
+
 class F162dDynamics(BaseDynamics):
 
-    def __init__(self, v_min=10, v_max=100, *args, **kwargs):
+    waypointlist = deque(maxlen=10)
+    def __init__(self, name, v_min=10, v_max=100, *args, **kwargs):
         self.v_min = v_min
         self.v_max = v_max
-        llc = LowLevelController()
-        
-        init = intruder_initial_state(llc)
-        init += ownship_initial_state(llc)
+        self.name = name
 
-        self.ap = AcasXuAutopilot(init, llc)
-        self.inner_step = 1/30
+        if name == 'lead':
+            init = get_straight_autopilot_init()
+            self.ap = StraightAndLevelAutopilot(init)
+        elif name == 'wingman':
+            e_pt = 45000
+            n_pt = 45000
+            h_pt = 3600
+
+            waypoints = [[e_pt, n_pt, h_pt]]
+            F162dDynamics.waypointlist.append([e_pt, n_pt, h_pt])
+            init = get_waypoint_autopilot_init()
+            self.ap = WaypointAutopilot(waypoints, stdout=True)
+        
+
+        self.inner_step = 0.1 #1/30
         extended_states = True
         self.fss = F16SimState(init, self.ap, self.inner_step, extended_states,
                 integrator_str='rk45', v2_integrators=False, print_errors=True, custom_stop_func=None)
@@ -547,17 +604,137 @@ class F162dDynamics(BaseDynamics):
         start = time.perf_counter()
 
         ap = self.ap
+
+        if self.fss.integrator is None:
+            self.fss.init_simulation()
+
+        self.fss.u_list[-1][0] = control[1] # throttle
+        self.fss.u_list[-1][3] = control[0] # rudder
+        if self.fss.cur_sim_time == 0:
+            self.fss.states[-1][StateIndex.POSE] = state.x
+            self.fss.states[-1][StateIndex.POSN] = state.y
+            self.fss.states[-1][StateIndex.PSI] = state.heading
+            self.fss.states[-1][StateIndex.VT] = state.v
+
+        if self.name == 'lead':
+            e_pt, n_pt, h_pt = F162dDynamics.waypointlist[-1]
+            F162dDynamics.waypointlist.append([state.x, state.y, h_pt])
+        elif self.name == 'wingman':
+            self.fss.ap.waypoints[-1] = F162dDynamics.waypointlist.pop()
+
+        
+
+        assert self.fss.integrator.status == 'running', \
+            f"integrator status was {self.fss.integrator.status} in call to step()"
+
+        assert len(self.fss.modes) == len(self.fss.times), f"modes len was {len(self.fss.modes)}, times len was {len(self.fss.times)}"
+        assert len(self.fss.states) == len(self.fss.times)
+
+        if not self.fss.keep_intermediate_states and len(self.fss.times) > 1:
+            # drop all except last state
+            self.fss.times = [self.fss.times[-1]]
+            self.fss.states = [self.fss.states[-1]]
+            self.fss.modes = [self.fss.modes[-1]]
+
+            if self.fss.extended_states:
+                self.fss.xd_list = [self.fss.xd_list[-1]]
+                self.fss.u_list = [self.fss.u_list[-1]]
+                self.fss.Nz_list = [self.fss.Nz_list[-1]]
+                self.fss.ps_list = [self.fss.ps_list[-1]]
+                self.fss.Ny_r_list = [self.fss.Ny_r_list[-1]]
+
+        next_step_time = self.fss.times[-1] + step_size
+
+        # goal for rest of the loop: do one more step
+
+        while next_step_time >= self.fss.integrator.t + tol:
+            # keep advancing integrator until it goes past the next step time
+            assert self.fss.integrator.status == 'running'
+            
+            self.fss.integrator.step()
+
+            if self.fss.integrator.status != 'running':
+                break
+
+        # get the state at next_step_time
+        self.fss.times.append(next_step_time)
+
+        if abs(self.fss.integrator.t - next_step_time) < tol:
+            try:
+                self.fss.states.append(self.fss.integrator.x)
+            except:
+                dense_output = self.fss.integrator.dense_output()
+                self.fss.states.append(dense_output(next_step_time))
+
+        else:
+            dense_output = self.fss.integrator.dense_output()
+            self.fss.states.append(dense_output(next_step_time))
+
+        # re-run dynamics function at current state to get non-state variables
+        if self.fss.extended_states:
+            xd, u, Nz, ps, Ny_r = get_extended_states(ap, self.fss.times[-1], self.fss.states[-1],
+                                                        self.fss.model_str, self.fss.v2_integrators)
+
+            self.fss.xd_list.append(xd)
+            self.fss.u_list.append(u)
+
+            self.fss.Nz_list.append(Nz)
+            self.fss.ps_list.append(ps)
+            self.fss.Ny_r_list.append(Ny_r)
+
+        mode_changed = ap.advance_discrete_mode(self.fss.times[-1], self.fss.states[-1])
+        self.fss.modes.append(ap.mode)
+
+        stop_func = self.fss.custom_stop_func if self.fss.custom_stop_func is not None else ap.is_finished
+
+        if stop_func(self.fss.times[-1], self.fss.states[-1]):
+            # this both causes the outer loop to exit and sets res['status'] appropriately
+            self.fss.integrator.status = 'autopilot finished'
+            return
+
+        if mode_changed:
+            # re-initialize the integration class on discrete mode switches
+            self.fss.integrator = self.fss.integrator_class(self.fss.der_func, self.fss.times[-1], self.fss.states[-1], np.inf,
+                                                    **self.fss.integrator_kwargs)
+
+        if self.fss.integrator.status == 'failed' and self.fss.print_errors:
+            print(f'Warning: integrator status was "{self.fss.integrator.status}"')
+
+        self.fss.total_sim_time += time.perf_counter() - start
+        np.seterr(**oldsettings)
+        rv_state = F162dState(x=self.fss.states[-1][StateIndex.POSE], y=self.fss.states[-1][StateIndex.POSN], heading=self.fss.states[-1][StateIndex.PSI], v=self.fss.states[-1][StateIndex.VT])
+        return rv_state
+    
+    def step_w_inner(self, step_size, state, control):
+        # step function with inner step size
+        # underflow errors were occuring if I don't do this
+        tol=1e-7
+        oldsettings = np.geterr()
+        np.seterr(all='raise', under='ignore')
+
+        start = time.perf_counter()
+
+        ap = self.ap
         step = self.inner_step
 
         if self.fss.integrator is None:
             self.fss.init_simulation()
 
-        self.fss.u_list[-1][-1][0] = control[1] # throttle
-        self.fss.u_list[-1][-1][3] = control[0] # rudder
+        ## note: self.fss.u_list[-1] is a 7-element list in waypoint autopilot while it is 2x7 element list in acasxu
+        # self.fss.u_list[-1][-1][0] = control[1] # throttle
+        # self.fss.u_list[-1][-1][3] = control[0] # rudder
+        self.fss.u_list[-1][0] = control[1] # throttle
+        self.fss.u_list[-1][3] = control[0] # rudder
         self.fss.states[-1][StateIndex.POSE] = state.x
         self.fss.states[-1][StateIndex.POSN] = state.y
         self.fss.states[-1][StateIndex.PSI] = state.heading
         self.fss.states[-1][StateIndex.VT] = state.v
+
+        if self.name == 'lead':
+            e_pt, n_pt, h_pt = F162dDynamics.waypointlist[-1]
+            F162dDynamics.waypointlist.append([state.x, state.y, h_pt])
+        elif self.name == 'wingman':
+            self.fss.ap.waypoints[-1] = F162dDynamics.waypointlist.pop()
         
 
         assert step_size >= self.inner_step
