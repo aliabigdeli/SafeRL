@@ -545,16 +545,20 @@ class F162dDynamics(BaseDynamics):
             self.fss.x0[StateIndex.POSN] = state.y
             self.fss.x0[StateIndex.PSI] = np.pi/2 - state.heading
             self.fss.x0[StateIndex.VT] = state.v
+            # ToDo: check if need to assign the target heading and velocity
+            self.ap.targets[0] = self.fss.x0[StateIndex.PSI]
+            self.ap.targets[1] = self.fss.x0[StateIndex.VT]
         
         
         self.ap.targets[0] -= control[0] # modify target heading by rudder control input
         # modify target velocity by throttle control input
-        if self.ap.targets[0] + control[1] < self.v_min:
-            self.ap.targets[0] = self.v_min
-        elif self.ap.targets[0] + control[1] > self.v_max:
-            self.ap.targets[0] = self.v_max
+        k_v = 1.0 # need to be tuned
+        if self.ap.targets[1] + control[1]*k_v < self.v_min:
+            self.ap.targets[1] = self.v_min
+        elif self.ap.targets[1] + control[1]*k_v > self.v_max:
+            self.ap.targets[1] = self.v_max
         else:
-            self.ap.targets[1] += control[1] # modify target velocity by throttle control input
+            self.ap.targets[1] += control[1]*k_v
 
         t_to = self.fss.cur_sim_time + step_size
         self.fss.simulate_to(t_to)
