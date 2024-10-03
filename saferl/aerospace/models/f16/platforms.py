@@ -15,6 +15,8 @@ from .aerobench.util import get_state_names, Euler, StateIndex, print_state, Fre
 from .aerobench.lowlevel.low_level_controller import LowLevelController
 from .aerobench.example.wingman.wingman_autopilot import WingmanAutopilot
 from numpy import deg2rad
+import csv
+import os
 
 class BaseDubinsPlatform(BasePlatform):
 
@@ -419,9 +421,9 @@ class F162dPlatform(BaseDubinsPlatform):
 
 class F162dState(BaseDubinsState):
 
-    def build_vector(self, x=0, y=0, heading=0, v=50, **kwargs):
+    def build_vector(self, x=0, y=0, heading=0, v=50, t=0, **kwargs):
 
-        return np.array([x, y, heading, v], dtype=np.float64)
+        return np.array([x, y, heading, v, t], dtype=np.float64)
 
     @property
     def x(self):
@@ -459,6 +461,15 @@ class F162dState(BaseDubinsState):
     def v(self, value):
         self._vector[3] = value
 
+    @property
+    def t(self):
+        return self._vector[4]
+
+    @t.setter
+    def t(self, value):
+        self._vector[4] = value
+
+    
     @property
     def position(self):
         position = np.zeros((3,))
@@ -498,24 +509,24 @@ class F162dActuatorSet(BaseActuatorSet):
         super().__init__(actuators)
 
 
-def get_wingman_autopilot_init():
+def get_wingman_autopilot_init(x0=0, y0=0, heading0=np.pi/2, v0=550):
     ### Initial Conditions ###
-    power = 4 # engine power level (0-10)
+    power = 4 #9 # engine power level (0-10)
 
     # Default alpha & beta
     alpha = 0 #deg2rad(2.1215) # Trim Angle of Attack (rad)
     beta = 0                # Side slip angle (rad)
 
     # Initial Attitude
-    alt = 3600 #3800        # altitude (ft)
-    vt = 550          # initial velocity (ft/sec)
+    alt = 1000 #3600 #3800        # altitude (ft)
+    vt = v0          # initial velocity (ft/sec)
     phi = 0           # Roll angle from wings level (rad)
     theta = 0         # Pitch angle from nose level (rad)
-    psi = -np.pi/2 #math.pi/8   # Yaw angle from North (rad)
+    psi = heading0 #math.pi/8   # Yaw angle from North (rad)
 
     # Build Initial Condition Vectors
     # state = [vt, alpha, beta, phi, theta, psi, P, Q, R, pn, pe, h, pow]
-    init = [vt, alpha, beta, phi, theta, psi, 0, 0, 0, 0, 0, alt, power]
+    init = [vt, alpha, beta, phi, theta, psi, 0, 0, 0, y0, x0, alt, power]
     return init
 
 class F162dDynamics(BaseDynamics):
@@ -526,28 +537,21 @@ class F162dDynamics(BaseDynamics):
         self.name = name
 
 
-        init = get_wingman_autopilot_init() # it doesn't matter, because we reinitialize the 'F16SimState' it in the step function
-        self.ap = WingmanAutopilot(target_heading=-np.pi/2, target_vel=550, target_alt=3600, stdout=True)
-        
-
-        self.inner_step = 1
-        extended_states = False # used for plotting in aerobench
-        self.fss = F16SimState(init, self.ap, self.inner_step, extended_states,
-                integrator_str='rk45', v2_integrators=False, print_errors=True, custom_stop_func=None)
+        self.ap = None
+        self.fss = None 
 
         super().__init__()
 
     def step(self, step_size, state, control):
-
-        if self.fss.cur_sim_time == 0:
+        
+        if state.t == 0:
             # we initialize the 'F16SimState' here because in SafeRL platfrom, yaml config file only initializes the F162dPlatform.state ('F162dState')
-            self.fss.x0[StateIndex.POSE] = state.x
-            self.fss.x0[StateIndex.POSN] = state.y
-            self.fss.x0[StateIndex.PSI] = np.pi/2 - state.heading
-            self.fss.x0[StateIndex.VT] = state.v
-            # ToDo: check if need to assign the target heading and velocity
-            self.ap.targets[0] = self.fss.x0[StateIndex.PSI]
-            self.ap.targets[1] = self.fss.x0[StateIndex.VT]
+            init = get_wingman_autopilot_init(state.x, state.y, np.pi/2 - state.heading, state.v)
+            extended_states = False  # used for plotting in aerobench
+            self.ap = WingmanAutopilot(target_heading=np.pi/2 - state.heading, target_vel=state.v, target_alt=init[StateIndex.ALT], stdout=True)
+            self.fss = F16SimState(init, self.ap, step_size, extended_states,
+                integrator_str='rk45', v2_integrators=False, print_errors=True, custom_stop_func=None)
+        
         
         
         self.ap.targets[0] -= control[0] # modify target heading by rudder control input
@@ -560,10 +564,10 @@ class F162dDynamics(BaseDynamics):
         else:
             self.ap.targets[1] += control[1]*k_v
 
-        t_to = self.fss.cur_sim_time + step_size
-        self.fss.simulate_to(t_to)
+        state.t = state.t + step_size
+        self.fss.simulate_to(state.t, update_mode_at_start=True)
         last_state = self.fss.states[-1]
-        rv_state = F162dState(x=last_state[StateIndex.POSE], y=last_state[StateIndex.POSN], heading=last_state[StateIndex.PSI], v=last_state[StateIndex.VT])
+        rv_state = F162dState(x=last_state[StateIndex.POSE], y=last_state[StateIndex.POSN], heading=(np.pi/2 - last_state[StateIndex.PSI]), v=last_state[StateIndex.VT], t=state.t)
         return rv_state
 
 

@@ -23,20 +23,20 @@ class WingmanAutopilot(Autopilot):
 
         # control config
         # Gains for speed control
-        self.cfg_k_vt = 0.25
+        self.cfg_k_vt = 0.25 #orig: 0.25
 
         # Gains for altitude tracking
         self.cfg_k_alt = 0.005
         self.cfg_k_h_dot = 0.02
 
         # Gains for heading tracking
-        self.cfg_k_prop_psi = 5
-        self.cfg_k_der_psi = 0.5
+        self.cfg_k_prop_psi = 10 #20 # orig: 5
+        self.cfg_k_der_psi = 0.5 # orig: 0.5
 
         # Gains for roll tracking
-        self.cfg_k_prop_phi = 0.75
+        self.cfg_k_prop_phi = 1.25 #1.5 # orig: 0.75
         self.cfg_k_der_phi = 0.5
-        self.cfg_max_bank_deg = 65 # maximum bank angle setpoint
+        self.cfg_max_bank_deg = 55 #80 65 # maximum bank angle setpoint
         # v2 was 0.5, 0.9
 
         # Ranges for Nz
@@ -174,10 +174,12 @@ class WingmanAutopilot(Autopilot):
     def advance_discrete_mode(self, t, x_f16):
         '''
         advance the discrete state based on the current aircraft state. Returns True iff the discrete state
-        has changed.
+        has changed. 
         '''
+
+        # return True since we want the integrator reset at every step (1.0), since the control changes
         
-        return False
+        return True
 
 
 def get_nz_for_level_turn_ol(x_f16):

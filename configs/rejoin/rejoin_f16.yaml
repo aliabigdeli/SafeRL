@@ -8,20 +8,20 @@ env_config:
     class: saferl.aerospace.models.f16.platforms.F162dPlatform
     config:
       # F16 velocity range: 200 <= vel <= 3000
-      v_min: 400
-      v_max: 600
+      v_min: 700
+      v_max: 900
       init:
         initializer: saferl.environment.tasks.initializers.RandBoundsInitializer
         heading: [0, 6.283185307179586]
-        v: [450, 500]
+        v: [750, 800]
         x: [5000, 10000]
         y: [5000, 10000]
   - name: wingman
     # class: saferl.aerospace.models.dubins.platforms.Dubins2dPlatform
     class: saferl.aerospace.models.f16.platforms.F162dPlatform
     config:
-      v_min: 400
-      v_max: 600
+      v_min: 700
+      v_max: 900
       integration_method: RK45
       controller:
         class: saferl.environment.models.platforms.AgentController
@@ -37,7 +37,7 @@ env_config:
       init:
         initializer: saferl.aerospace.tasks.rejoin.initializers.WingmanPolarInitializer
         heading: [0, 6.283185307179586]
-        v: [400, 600]
+        v: [700, 900]
         ref: lead
         radius: [5000, 10000]
         angle: [0, 6.283185307179586]
