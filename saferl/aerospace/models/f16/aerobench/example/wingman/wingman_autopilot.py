@@ -30,13 +30,13 @@ class WingmanAutopilot(Autopilot):
         self.cfg_k_h_dot = 0.02
 
         # Gains for heading tracking
-        self.cfg_k_prop_psi = 10 #20 # orig: 5
+        self.cfg_k_prop_psi = 20 # orig: 5
         self.cfg_k_der_psi = 0.5 # orig: 0.5
 
         # Gains for roll tracking
-        self.cfg_k_prop_phi = 1.25 #1.5 # orig: 0.75
+        self.cfg_k_prop_phi = 1.5 # orig: 0.75
         self.cfg_k_der_phi = 0.5
-        self.cfg_max_bank_deg = 55 #80 65 # maximum bank angle setpoint
+        self.cfg_max_bank_deg = 80 # orig:65 # maximum bank angle setpoint
         # v2 was 0.5, 0.9
 
         # Ranges for Nz

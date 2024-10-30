@@ -155,7 +155,8 @@ class F16SimState(Freezable):
 
         if integrator_str == 'rk45':
             integrator_class = RK45
-            self.integrator_kwargs = {}
+            # self.integrator_kwargs = {}
+            self.integrator_kwargs = {'rtol': 1e-5, 'atol': 1e-08} # default values: 'rtol': 0.001, 'atol': 1e-06
         else:
             assert integrator_str == 'euler'
             integrator_class = Euler
@@ -511,7 +512,7 @@ class F162dActuatorSet(BaseActuatorSet):
 
 def get_wingman_autopilot_init(x0=0, y0=0, heading0=np.pi/2, v0=550):
     ### Initial Conditions ###
-    power = 4 #9 # engine power level (0-10)
+    power = 9 #9 # engine power level (0-10)
 
     # Default alpha & beta
     alpha = 0 #deg2rad(2.1215) # Trim Angle of Attack (rad)
@@ -552,7 +553,31 @@ class F162dDynamics(BaseDynamics):
             self.fss = F16SimState(init, self.ap, step_size, extended_states,
                 integrator_str='rk45', v2_integrators=False, print_errors=True, custom_stop_func=None)
         
-        
+        # if state.t == 0:
+        #     print(f'time:{state.t}, name:{self.name} , x:{state.x}, y:{state.y}, heading:{state.heading}, v:{state.v}, rudder:{control[0]}, throttle:{control[1]}, alpha:{init[StateIndex.ALPHA]}')
+        # else:
+        #     print(f'time:{state.t}, name:{self.name} , x:{state.x}, y:{state.y}, heading:{state.heading}, v:{state.v}, rudder:{control[0]}, throttle:{control[1]}, alpha:{self.fss.states[-1][StateIndex.ALPHA]}')
+
+        # # Define the file path
+        # csv_file_path = 'csvfile.csv'
+
+        # # Check if the file exists
+        # file_exists = os.path.isfile(csv_file_path)
+
+        # # Open the file in append mode
+        # with open(csv_file_path, mode='a', newline='') as file:
+        #     writer = csv.writer(file)
+            
+        #     # If the file does not exist, write the header
+        #     if not file_exists:
+        #         writer.writerow(['t', 'name', 'x', 'y', 'heading', 'v', 'rudder', 'throttle', 'alpha'])
+            
+        #     # Append the new row
+        #     if state.t == 0:
+        #         writer.writerow([state.t, self.name, state.x, state.y, state.heading, state.v, control[0], control[1], init[StateIndex.ALPHA]])
+        #     else:
+        #         writer.writerow([state.t, self.name, state.x, state.y, state.heading, state.v, control[0], control[1], self.fss.states[-1][StateIndex.ALPHA]])
+
         
         self.ap.targets[0] -= control[0] # modify target heading by rudder control input
         # modify target velocity by throttle control input

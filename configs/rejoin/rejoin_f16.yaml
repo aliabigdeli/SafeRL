@@ -33,7 +33,8 @@ env_config:
         - name: throttle
           space: continuous
           rescale: true
-          bounds: [-96.5, 96.5]
+          # bounds: [-96.5, 96.5]
+          bounds: [-10, 10]
       init:
         initializer: saferl.aerospace.tasks.rejoin.initializers.WingmanPolarInitializer
         heading: [0, 6.283185307179586]
