@@ -1,0 +1,100 @@
+Failure # 1 (occurred at 2024-10-28_21-25-25)
+Traceback (most recent call last):
+  File "/home/alibigdeli/mambaforge/envs/rlenv/lib/python3.9/site-packages/ray/tune/trial_runner.py", line 739, in _process_trial
+    results = self.trial_executor.fetch_result(trial)
+  File "/home/alibigdeli/mambaforge/envs/rlenv/lib/python3.9/site-packages/ray/tune/ray_trial_executor.py", line 729, in fetch_result
+    result = ray.get(trial_future[0], timeout=DEFAULT_GET_TIMEOUT)
+  File "/home/alibigdeli/mambaforge/envs/rlenv/lib/python3.9/site-packages/ray/_private/client_mode_hook.py", line 82, in wrapper
+    return func(*args, **kwargs)
+  File "/home/alibigdeli/mambaforge/envs/rlenv/lib/python3.9/site-packages/ray/worker.py", line 1564, in get
+    raise value.as_instanceof_cause()
+ray.exceptions.RayTaskError(SimModelError): [36mray::PPO.train()[39m (pid=2984813, ip=130.245.26.13)
+  File "python/ray/_raylet.pyx", line 534, in ray._raylet.execute_task
+  File "python/ray/_raylet.pyx", line 484, in ray._raylet.execute_task.function_executor
+  File "/home/alibigdeli/mambaforge/envs/rlenv/lib/python3.9/site-packages/ray/_private/function_manager.py", line 563, in actor_method_executor
+    return method(__ray_actor, *args, **kwargs)
+  File "/home/alibigdeli/mambaforge/envs/rlenv/lib/python3.9/site-packages/ray/rllib/agents/trainer.py", line 640, in train
+    raise e
+  File "/home/alibigdeli/mambaforge/envs/rlenv/lib/python3.9/site-packages/ray/rllib/agents/trainer.py", line 629, in train
+    result = Trainable.train(self)
+  File "/home/alibigdeli/mambaforge/envs/rlenv/lib/python3.9/site-packages/ray/tune/trainable.py", line 237, in train
+    result = self.step()
+  File "/home/alibigdeli/mambaforge/envs/rlenv/lib/python3.9/site-packages/ray/rllib/agents/trainer_template.py", line 170, in step
+    res = next(self.train_exec_impl)
+  File "/home/alibigdeli/mambaforge/envs/rlenv/lib/python3.9/site-packages/ray/util/iter.py", line 756, in __next__
+    return next(self.built_iterator)
+  File "/home/alibigdeli/mambaforge/envs/rlenv/lib/python3.9/site-packages/ray/util/iter.py", line 783, in apply_foreach
+    for item in it:
+  File "/home/alibigdeli/mambaforge/envs/rlenv/lib/python3.9/site-packages/ray/util/iter.py", line 783, in apply_foreach
+    for item in it:
+  File "/home/alibigdeli/mambaforge/envs/rlenv/lib/python3.9/site-packages/ray/util/iter.py", line 843, in apply_filter
+    for item in it:
+  File "/home/alibigdeli/mambaforge/envs/rlenv/lib/python3.9/site-packages/ray/util/iter.py", line 843, in apply_filter
+    for item in it:
+  File "/home/alibigdeli/mambaforge/envs/rlenv/lib/python3.9/site-packages/ray/util/iter.py", line 783, in apply_foreach
+    for item in it:
+  File "/home/alibigdeli/mambaforge/envs/rlenv/lib/python3.9/site-packages/ray/util/iter.py", line 783, in apply_foreach
+    for item in it:
+  File "/home/alibigdeli/mambaforge/envs/rlenv/lib/python3.9/site-packages/ray/util/iter.py", line 783, in apply_foreach
+    for item in it:
+  [Previous line repeated 1 more time]
+  File "/home/alibigdeli/mambaforge/envs/rlenv/lib/python3.9/site-packages/ray/util/iter.py", line 876, in apply_flatten
+    for item in it:
+  File "/home/alibigdeli/mambaforge/envs/rlenv/lib/python3.9/site-packages/ray/util/iter.py", line 828, in add_wait_hooks
+    item = next(it)
+  File "/home/alibigdeli/mambaforge/envs/rlenv/lib/python3.9/site-packages/ray/util/iter.py", line 783, in apply_foreach
+    for item in it:
+  File "/home/alibigdeli/mambaforge/envs/rlenv/lib/python3.9/site-packages/ray/util/iter.py", line 783, in apply_foreach
+    for item in it:
+  File "/home/alibigdeli/mambaforge/envs/rlenv/lib/python3.9/site-packages/ray/util/iter.py", line 783, in apply_foreach
+    for item in it:
+  [Previous line repeated 1 more time]
+  File "/home/alibigdeli/mambaforge/envs/rlenv/lib/python3.9/site-packages/ray/util/iter.py", line 471, in base_iterator
+    yield ray.get(futures, timeout=timeout)
+  File "/home/alibigdeli/mambaforge/envs/rlenv/lib/python3.9/site-packages/ray/_private/client_mode_hook.py", line 82, in wrapper
+    return func(*args, **kwargs)
+ray.exceptions.RayTaskError(SimModelError): [36mray::RolloutWorker.par_iter_next()[39m (pid=2984820, ip=130.245.26.13)
+  File "python/ray/_raylet.pyx", line 534, in ray._raylet.execute_task
+  File "python/ray/_raylet.pyx", line 484, in ray._raylet.execute_task.function_executor
+  File "/home/alibigdeli/mambaforge/envs/rlenv/lib/python3.9/site-packages/ray/_private/function_manager.py", line 563, in actor_method_executor
+    return method(__ray_actor, *args, **kwargs)
+  File "/home/alibigdeli/mambaforge/envs/rlenv/lib/python3.9/site-packages/ray/util/iter.py", line 1151, in par_iter_next
+    return next(self.local_it)
+  File "/home/alibigdeli/mambaforge/envs/rlenv/lib/python3.9/site-packages/ray/rllib/evaluation/rollout_worker.py", line 339, in gen_rollouts
+    yield self.sample()
+  File "/home/alibigdeli/mambaforge/envs/rlenv/lib/python3.9/site-packages/ray/rllib/evaluation/rollout_worker.py", line 740, in sample
+    batches = [self.input_reader.next()]
+  File "/home/alibigdeli/mambaforge/envs/rlenv/lib/python3.9/site-packages/ray/rllib/evaluation/sampler.py", line 101, in next
+    batches = [self.get_data()]
+  File "/home/alibigdeli/mambaforge/envs/rlenv/lib/python3.9/site-packages/ray/rllib/evaluation/sampler.py", line 231, in get_data
+    item = next(self.rollout_provider)
+  File "/home/alibigdeli/mambaforge/envs/rlenv/lib/python3.9/site-packages/ray/rllib/evaluation/sampler.py", line 652, in _env_runner
+    base_env.send_actions(actions_to_send)
+  File "/home/alibigdeli/mambaforge/envs/rlenv/lib/python3.9/site-packages/ray/rllib/env/base_env.py", line 363, in send_actions
+    self.vector_env.vector_step(action_vector)
+  File "/home/alibigdeli/mambaforge/envs/rlenv/lib/python3.9/site-packages/ray/rllib/env/vector_env.py", line 173, in vector_step
+    obs, r, done, info = self.envs[i].step(actions[i])
+  File "/home/alibigdeli/codes/SafeRL/saferl/environment/tasks/env.py", line 98, in step
+    self._step_sim(action)
+  File "/home/alibigdeli/codes/SafeRL/saferl/environment/tasks/env.py", line 89, in _step_sim
+    self.sim_state.env_objs[obj_name].step_compute(self.sim_state, self.step_size, action)
+  File "/home/alibigdeli/codes/SafeRL/saferl/environment/models/platforms.py", line 364, in step_compute
+    self.next_state = self.dynamics.step(step_size, copy.deepcopy(self.state), control)
+  File "/home/alibigdeli/codes/SafeRL/saferl/aerospace/models/f16/platforms.py", line 593, in step
+    self.fss.simulate_to(state.t, update_mode_at_start=True)
+  File "/home/alibigdeli/codes/SafeRL/saferl/aerospace/models/f16/platforms.py", line 262, in simulate_to
+    self.integrator.step()
+  File "/home/alibigdeli/mambaforge/envs/rlenv/lib/python3.9/site-packages/scipy/integrate/_ivp/base.py", line 181, in step
+    success, message = self._step_impl()
+  File "/home/alibigdeli/mambaforge/envs/rlenv/lib/python3.9/site-packages/scipy/integrate/_ivp/rk.py", line 144, in _step_impl
+    y_new, f_new = rk_step(self.fun, t, y, self.f, h, self.A,
+  File "/home/alibigdeli/mambaforge/envs/rlenv/lib/python3.9/site-packages/scipy/integrate/_ivp/rk.py", line 67, in rk_step
+    f_new = fun(t + h, y_new)
+  File "/home/alibigdeli/mambaforge/envs/rlenv/lib/python3.9/site-packages/scipy/integrate/_ivp/base.py", line 138, in fun
+    return self.fun_single(t, y)
+  File "/home/alibigdeli/mambaforge/envs/rlenv/lib/python3.9/site-packages/scipy/integrate/_ivp/base.py", line 20, in fun_wrapped
+    return np.asarray(fun(t, y), dtype=dtype)
+  File "/home/alibigdeli/codes/SafeRL/saferl/aerospace/models/f16/platforms.py", line 344, in der_func
+    raise SimModelError(f"alpha ({alpha}) out of bounds")
+saferl.aerospace.models.f16.platforms.SimModelError: alpha (-2.8827947782689174) out of bounds
+
