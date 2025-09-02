@@ -12,7 +12,7 @@ import os
 
 
 
-def plot_rollouts(env, seed, num_rollouts=1, render=False):
+def plot_rollouts(env, seed, num_rollouts=1, render=False, model='f16dubins_50sec.onnx'):
     """
     A function to coordinate policy evaluation via RLLib API.
 
@@ -30,7 +30,7 @@ def plot_rollouts(env, seed, num_rollouts=1, render=False):
         Flag to render the environment in a separate window during rollouts.
     """
     
-    ort_session = ort.InferenceSession("f16dubins.onnx")
+    ort_session = ort.InferenceSession(model)
 
     # Get input and output names
     input_name = ort_session.get_inputs()[0].name
@@ -180,7 +180,8 @@ def plot_rollouts(env, seed, num_rollouts=1, render=False):
 
 def main():
     parser = argparse.ArgumentParser(description="Plot ONNX rollout results")
-    parser.add_argument('-c', '--config', type=str, default='rejoin_f16.yaml', help='Path to config YAML file')
+    parser.add_argument('-m', '--model', type=str, default='f16dubins_50sec.onnx', help='Path to model ONNX file')
+    parser.add_argument('-c', '--config', type=str, default='rejoin_f16_50sec.yaml', help='Path to config YAML file')
     parser.add_argument('-s', '--seed', type=int, default=0, help='Random seed for environment')
     parser.add_argument('-n', '--num_rollouts', type=int, default=1, help='Number of rollouts to run')
     args = parser.parse_args()
@@ -191,7 +192,8 @@ def main():
     env = DubinsRejoin(config['env_config'])
     seed = args.seed
     env.seed(seed)
-    plot_rollouts(env, seed, args.num_rollouts)
+    model = args.model
+    plot_rollouts(env, seed, args.num_rollouts, model)
 
 if __name__ == "__main__":
     main()
