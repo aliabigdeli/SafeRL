@@ -6,11 +6,13 @@ from saferl.environment.utils import YAMLParser, build_lookup
 import jsonlines
 import tqdm
 import matplotlib.pyplot as plt
+import csv
+import argparse
+import os
 
 
 
-
-def plot_rollouts(env, num_rollouts=1, render=False):
+def plot_rollouts(env, seed, num_rollouts=1, render=False, model='f16dubins_50sec.onnx'):
     """
     A function to coordinate policy evaluation via RLLib API.
 
@@ -28,28 +30,35 @@ def plot_rollouts(env, num_rollouts=1, render=False):
         Flag to render the environment in a separate window during rollouts.
     """
     
-    ort_session = ort.InferenceSession("f16dubins.onnx")
+    ort_session = ort.InferenceSession(model)
 
     # Get input and output names
     input_name = ort_session.get_inputs()[0].name
     # output_name = ort_session.get_outputs()[0].name
     output_names = [output.name for output in ort_session.get_outputs()]
 
-    # initialize lists
-    lead_x = []
-    lead_y = []
-    wingman_x = []
-    wingman_y = []
-    wingman_speed = []
-    wingman_throttle = []
-    wingman_untrimmed_throttle = []
+    # initialize list to track rollout results
+    rollout_results = []
 
     for i in tqdm.tqdm(range(num_rollouts)):
+        # initialize lists for this rollout
+        lead_x = []
+        lead_y = []
+        wingman_x = []
+        wingman_y = []
+        wingman_speed = []
+        wingman_throttle = []
+        wingman_untrimmed_throttle = []
+        
         # run until episode ends
         episode_reward = 0
         done = False
         obs = env.reset()
         step_num = 0
+        
+        # track mission outcome for this rollout
+        mission_successful = False
+        failure_reason = None
 
         while not done:
             # progress environment state
@@ -84,62 +93,107 @@ def plot_rollouts(env, num_rollouts=1, render=False):
             wingman_speed.append(info['wingman']['v'])
             wingman_throttle.append(info['wingman']['controller']['control'][1])
             wingman_untrimmed_throttle.append(info['wingman']['controller']['untrimmed_control'][1])
+            
+            # check for mission success/failure status
+            if 'success' in info and info['success']:
+                mission_successful = True
+            if 'failure' in info and info['failure']:
+                failure_reason = info['failure']
 
             if render:
                 # attempt to render environment state
                 env.render()
+        
+        # Create individual plot for this rollout
+        fig = plt.figure(figsize=(12, 6))
+        gs = fig.add_gridspec(2, 2, height_ratios=[1, 1], width_ratios=[2, 1])
+
+        ax1 = fig.add_subplot(gs[:, 0])  # Trajectory plot
+        ax2 = fig.add_subplot(gs[0, 1])  # Speed plot
+        ax3 = fig.add_subplot(gs[1, 1])  # Throttle plot
+        
+        # Plotting the trajectories
+        ax1.plot(lead_x, lead_y, label='Lead', marker='o')
+        ax1.plot(wingman_x, wingman_y, label='Follower', marker='o')
+        ax1.scatter([lead_x[0], lead_x[-1]], [lead_y[0], lead_y[-1]], color='red')  # Start and End points for Lead
+        ax1.scatter([wingman_x[0], wingman_x[-1]], [wingman_y[0], wingman_y[-1]], color='blue')  # Start and End points for Wingman
+        ax1.text(lead_x[0], lead_y[0], 'Start')
+        ax1.text(lead_x[-1], lead_y[-1], 'End')
+        ax1.text(wingman_x[0], wingman_y[0], 'Start')
+        ax1.text(wingman_x[-1], wingman_y[-1], 'End')
+        
+        # Add success/failure status to trajectory plot title
+        status_text = "SUCCESS" if mission_successful else f"FAILED ({failure_reason})" if failure_reason else "COMPLETED"
+        ax1.set_title(f'Trajectory of Aircraft - Rollout {i+1} - {status_text}')
+        ax1.set_xlabel('X Coordinate')
+        ax1.set_ylabel('Y Coordinate')
+        ax1.legend()
+        ax1.grid(True)
+
+        # Plotting the speed of the follower
+        ax2.plot(wingman_speed, 'g-', label='Follower Speed', marker='o')
+        ax2.set_title('Speed of the Follower')
+        ax2.set_xlabel('Time Step')
+        ax2.set_ylabel('Speed')
+        ax2.grid(True)
+
+        # Plotting the throttle command
+        ax3.plot(wingman_throttle, 'b-', label='Throttle')
+        ax3.plot(wingman_untrimmed_throttle, 'b--', label='Untrimmed')
+        ax3.set_title('Throttle Command to Follower')
+        ax3.set_xlabel('Time Step')
+        ax3.set_ylabel('Throttle Command')
+        ax3.legend()
+        ax3.grid(True)
+
+        plt.tight_layout()
+        
+        # Check if rollout_plots directory exists, if not, create it
+        if not os.path.exists('rollout_plots'):
+            os.makedirs('rollout_plots')
+        # Save individual rollout plot
+        plt.savefig(f'rollout_plots/onnx_runout_plot_seed{seed}_rollout{i+1}.png')
+        plt.show()
+        plt.close()  # Close the figure to free memory
+        
+        # store rollout result
+        rollout_results.append({
+            'rollout_number': i + 1,
+            'successful': mission_successful,
+            'failure_reason': failure_reason if failure_reason else 'N/A',
+            'final_reward': episode_reward,
+            'total_steps': step_num
+        })
     
-    # Setting up subplots
-    fig = plt.figure(figsize=(12, 6))
-    gs = fig.add_gridspec(2, 2, height_ratios=[1, 1], width_ratios=[2, 1])
-
-    ax1 = fig.add_subplot(gs[:, 0])  # Trajectory plot
-    ax2 = fig.add_subplot(gs[0, 1])  # Speed plot
-    ax3 = fig.add_subplot(gs[1, 1])  # Throttle plot
+    # Save rollout results to CSV
+    csv_filename = f'rollout_results_seed{seed}_rollouts{num_rollouts}.csv'
+    with open(csv_filename, 'w', newline='') as csvfile:
+        fieldnames = ['rollout_number', 'successful', 'failure_reason', 'final_reward', 'total_steps']
+        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+        
+        writer.writeheader()
+        for result in rollout_results:
+            writer.writerow(result)
     
-    # Plotting the trajectories
-    ax1.plot(lead_x, lead_y, label='Lead', marker='o')
-    ax1.plot(wingman_x, wingman_y, label='Follower', marker='o')
-    ax1.scatter([lead_x[0], lead_x[-1]], [lead_y[0], lead_y[-1]], color='red')  # Start and End points for Lead
-    ax1.scatter([wingman_x[0], wingman_x[-1]], [wingman_y[0], wingman_y[-1]], color='blue')  # Start and End points for Wingman
-    ax1.text(lead_x[0], lead_y[0], 'Start')
-    ax1.text(lead_x[-1], lead_y[-1], 'End')
-    ax1.text(wingman_x[0], wingman_y[0], 'Start')
-    ax1.text(wingman_x[-1], wingman_y[-1], 'End')
-    ax1.set_title('Trajectory of Aircraft')
-    ax1.set_xlabel('X Coordinate')
-    ax1.set_ylabel('Y Coordinate')
-    ax1.legend()
-    ax1.grid(True)
-
-    # Plotting the speed of the follower
-    ax2.plot(wingman_speed, 'g-', label='Follower Speed', marker='o')
-    ax2.set_title('Speed of the Follower')
-    ax2.set_xlabel('Time Step')
-    ax2.set_ylabel('Speed')
-    ax2.grid(True)
-
-    # Plotting the throttle command
-    ax3.plot(wingman_throttle, 'b-', label='Throttle')
-    ax3.plot(wingman_untrimmed_throttle, 'b--', label='Untrimmed')
-    ax3.set_title('Throttle Command to Follower')
-    ax3.set_xlabel('Time Step')
-    ax3.set_ylabel('Throttle Command')
-    ax3.legend()
-    ax3.grid(True)
-
-    plt.tight_layout()
-    
-    plt.savefig('onnx_runout_plot.png')
-    plt.show()
+    print(f"Rollout results saved to {csv_filename}")
+    print(f"Individual plots saved as onnx_runout_plot_seed{seed}_rollout[N].png")
 
 def main():
-    config_dir = 'rejoin_f16.yaml'
-    parser = YAMLParser(yaml_file=config_dir, lookup=build_lookup())
-    config = parser.parse_env()
+    parser = argparse.ArgumentParser(description="Plot ONNX rollout results")
+    parser.add_argument('-m', '--model', type=str, default='f16dubins_50sec.onnx', help='Path to model ONNX file')
+    parser.add_argument('-c', '--config', type=str, default='rejoin_f16_50sec.yaml', help='Path to config YAML file')
+    parser.add_argument('-s', '--seed', type=int, default=0, help='Random seed for environment')
+    parser.add_argument('-n', '--num_rollouts', type=int, default=1, help='Number of rollouts to run')
+    args = parser.parse_args()
+
+    config_dir = args.config
+    parser_yaml = YAMLParser(yaml_file=config_dir, lookup=build_lookup())
+    config = parser_yaml.parse_env()
     env = DubinsRejoin(config['env_config'])
-    env.seed(0)
-    plot_rollouts(env)
+    seed = args.seed
+    env.seed(seed)
+    model = args.model
+    plot_rollouts(env, seed, args.num_rollouts, model)
 
 if __name__ == "__main__":
     main()
