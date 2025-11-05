@@ -150,7 +150,8 @@ for trial_idx in range(10):
 
         obs, reward, done, info = env.step(action)
 
-        control = np.copy(env.env_objs['deputy'].current_control)
+        #control = np.copy(env.env_objs['deputy'].current_control)
+        control = np.copy(env.env_objs['wingman'].current_control)
 
         episode_data['obs'].append(obs)
         episode_data['info'].append(info)

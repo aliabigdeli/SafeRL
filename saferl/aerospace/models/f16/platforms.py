@@ -558,25 +558,28 @@ class F162dDynamics(BaseDynamics):
         # else:
         #     print(f'time:{state.t}, name:{self.name} , x:{state.x}, y:{state.y}, heading:{state.heading}, v:{state.v}, rudder:{control[0]}, throttle:{control[1]}, alpha:{self.fss.states[-1][StateIndex.ALPHA]}')
 
-        # # Define the file path
-        # csv_file_path = 'csvfile.csv'
+        if True:
+            # # Define the file path
+            csv_file_path = 'eval_csvfile.csv'
 
-        # # Check if the file exists
-        # file_exists = os.path.isfile(csv_file_path)
+            # # Check if the file exists
+            file_exists = os.path.isfile(csv_file_path)
 
-        # # Open the file in append mode
-        # with open(csv_file_path, mode='a', newline='') as file:
-        #     writer = csv.writer(file)
-            
-        #     # If the file does not exist, write the header
-        #     if not file_exists:
-        #         writer.writerow(['t', 'name', 'x', 'y', 'heading', 'v', 'rudder', 'throttle', 'alpha'])
-            
-        #     # Append the new row
-        #     if state.t == 0:
-        #         writer.writerow([state.t, self.name, state.x, state.y, state.heading, state.v, control[0], control[1], init[StateIndex.ALPHA]])
-        #     else:
-        #         writer.writerow([state.t, self.name, state.x, state.y, state.heading, state.v, control[0], control[1], self.fss.states[-1][StateIndex.ALPHA]])
+            # # Open the file in append mode
+            with open(csv_file_path, mode='a', newline='') as file:
+                writer = csv.writer(file)
+                
+            #     # If the file does not exist, write the header
+                if not file_exists:
+                    writer.writerow(['t', 'name', 'x', 'y', 'heading', 'v', 'rudder', 'throttle', 'alpha', 'ap.targets[0]', 'ap.targets[1]', 'ap.targets[2]', 'control[0]', 'control[1]'])
+                
+            #     # Append the new row
+                if state.t == 0:
+                    writer.writerow([state.t, self.name, state.x, state.y, state.heading, state.v, control[0], control[1], init[StateIndex.ALPHA], self.ap.targets[0], 
+                    self.ap.targets[1], self.ap.targets[2], control[0], control[1]])
+                else:
+                    writer.writerow([state.t, self.name, state.x, state.y, state.heading, state.v, control[0], control[1], self.fss.states[-1][StateIndex.ALPHA], self.ap.targets[0], 
+                    self.ap.targets[1], self.ap.targets[2], control[0], control[1]])
 
         
         self.ap.targets[0] -= control[0] # modify target heading by rudder control input
