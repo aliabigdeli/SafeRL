@@ -557,8 +557,10 @@ class F162dDynamics(BaseDynamics):
         #     print(f'time:{state.t}, name:{self.name} , x:{state.x}, y:{state.y}, heading:{state.heading}, v:{state.v}, rudder:{control[0]}, throttle:{control[1]}, alpha:{init[StateIndex.ALPHA]}')
         # else:
         #     print(f'time:{state.t}, name:{self.name} , x:{state.x}, y:{state.y}, heading:{state.heading}, v:{state.v}, rudder:{control[0]}, throttle:{control[1]}, alpha:{self.fss.states[-1][StateIndex.ALPHA]}')
+        
+        #print(f"STEP called, x: {state.x}")
 
-        if True:
+        if False:
             # # Define the file path
             csv_file_path = 'eval_csvfile.csv'
 

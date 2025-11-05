@@ -94,6 +94,8 @@ def run_rollouts(agent, env, log_dir, num_rollouts=1, skip_rollouts=0, render=Fa
             obs = env.reset()
             step_num = 0
             
+            print(f'{i=}, state: {env.generate_info()["wingman"]["state"]}')
+            
             if i < skip_rollouts:
                 print(f"Skipping rollout_num={i}")
                 continue
